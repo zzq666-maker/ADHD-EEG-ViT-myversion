@@ -23,6 +23,8 @@ The dataset is expected to be a dictionary containing 'data' and 'label' keys. F
 
 ## Model
 
+![architecture](/assets/architecture.png)
+
 - Trained model: ["ieee-transformer_250303001232982598_3.pt"](/log)
 - Conv1d embedding(ViT) + Transformer(EEG-Transformer)
 - Instead of using CLS token(ViT), data classification leverages the entire set of vectors(EEG-Transformer).
@@ -45,4 +47,4 @@ The dataset is expected to be a dictionary containing 'data' and 'label' keys. F
 
 ## Blog
 
-한국어: [EEG 신호를 활용한 청소년 ADHD 진단](https://denev6.github.io/projects/2025/03/05/eeg-transformer.html)
+한국어: [EEG 신호를 활용한 청소년 ADHD 진단](https://denev6.github.io/posts/eeg-transformer)
