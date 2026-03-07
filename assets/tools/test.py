@@ -9,7 +9,7 @@ class I3ETestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Load metadata and datasets."""
-        data_dir = os.path.abspath("../../IEEE")
+        data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../IEEE"))
 
         with open(os.path.join(data_dir, "metadata.json"), "r") as file:
             cls.META = json.load(file)

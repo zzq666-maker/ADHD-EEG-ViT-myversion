@@ -117,46 +117,6 @@ class Transformer(nn.Module):
         return x
 
 
-import torch
-import torch.nn as nn
-
-class ChannelAttention1D(nn.Module):
-    """
-    输入: x [B, C, T]
-    输出: x' [B, C, T]，对每个通道乘以一个权重 (0~1)
-    """
-    def __init__(self, channels: int, reduction: int = 4, dropout_p: float = 0.0):
-        super().__init__()
-        hidden = max(1, channels // reduction)
-        self.mlp = nn.Sequential(
-            nn.Linear(channels, hidden, bias=True),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=dropout_p) if dropout_p > 0 else nn.Identity(),
-            nn.Linear(hidden, channels, bias=True),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        # x: [B, C, T]
-        w = x.mean(dim=-1)          # [B, C]  全局平均池化(时间维)
-        w = self.mlp(w)             # [B, C]
-        w = w.unsqueeze(-1)         # [B, C, 1]
-        return x * w, w             # 返回权重，方便可视化
-
-class StaticChannelGating(nn.Module):
-    """
-    全局可学习的通道门控：每个电极一个标量权重(0~1)。
-    输入: x [B, C, T]
-    输出: x' [B, C, T], w [C]
-    """
-    def __init__(self, channels: int):
-        super().__init__()
-        self.logits = nn.Parameter(torch.zeros(channels))  # 初始为0 => sigmoid=0.5
-
-    def forward(self, x):
-        w = torch.sigmoid(self.logits)          # [C]
-        return x * w.view(1, -1, 1), w
-    
 class ViTransformer(nn.Module):
     """Vision Transformer model for EEG signals."""
 
@@ -171,33 +131,13 @@ class ViTransformer(nn.Module):
         fc_hidden_dim: int,
         num_classes: int,
         dropout_p: float = 0.0,
-        use_channel_attn: bool = False,
-        channel_attn_type: str = "static",
-        channel_attn_reduction: int = 4,
     ) -> torch.Tensor:
         """'input_channel' will be converted to 'embed_dim' through 1D convolution."""
         super(ViTransformer, self).__init__()
         self.signal_channel = input_channel
         self.seq_length = seq_length
 
-        # ===== Channel attention (optional) =====
-        self.use_channel_attn = use_channel_attn
-        self.channel_attn_type = channel_attn_type
-        self.last_channel_attn = None  # 保存权重，方便可视化
-
-        if self.use_channel_attn:
-            if self.channel_attn_type == "static":
-                self.chan_attn = StaticChannelGating(self.signal_channel)
-            elif self.channel_attn_type == "dynamic":
-                self.chan_attn = ChannelAttention1D(
-                    channels=self.signal_channel,
-                    reduction=channel_attn_reduction,
-                    dropout_p=0.0,
-                )
-            else:
-                raise ValueError(f"Unknown channel_attn_type: {self.channel_attn_type}")
-
-        # ===== Embedding =====
+        # Embedding
         self.proj = nn.Conv1d(self.signal_channel, embed_dim, kernel_size=3, padding=1)
 
         self.transformer = Transformer(
@@ -209,31 +149,16 @@ class ViTransformer(nn.Module):
             fc_hidden_dim,
             num_classes,
             dropout_p,
-        )        
+        )
+
     def forward(self, input):
         torch._assert(
             input.shape[1:] == (self.signal_channel, self.seq_length),
             f"Expected shape of (batch, {self.signal_channel}, {self.seq_length})",
         )
-
-        x = input  # [B, C, T]
-
-        # ===== apply channel attention BEFORE proj =====
-        if self.use_channel_attn:
-            x, w = self.chan_attn(x)
-            # dynamic: w [B, C, 1] -> 保存成 [B, C]
-            # static : w [C]      -> 保存成 [C]
-            if w.dim() == 3:
-                self.last_channel_attn = w.squeeze(-1)  # [B, C]
-            else:
-                self.last_channel_attn = w              # [C]
-        else:
-            self.last_channel_attn = None
-
-        # ===== original pipeline =====
-        x = self.proj(x)            # [B, embed_dim, T]
-        x = x.permute(0, 2, 1)      # [B, T, embed_dim]
-        x = self.transformer(x)     # [B, num_classes]
+        x = self.proj(input)
+        x = x.permute(0, 2, 1)
+        x = self.transformer(x)
         return x
 
 

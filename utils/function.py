@@ -26,9 +26,13 @@ def _mount_google_drive():
     sys.path.append("/content/drive/MyDrive")
 
 
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 def join_drive_path(*args):
-    """Join Google Drive path"""
-    return os.path.join("/content/drive/MyDrive", *args)
+    """Join local project path"""
+    return os.path.join(BASE_DIR, *args)
 
 
 # Torch
