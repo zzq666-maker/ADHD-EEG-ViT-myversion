@@ -6,8 +6,6 @@ __pycache__
 
 # Private
 p_*
-data_raw/
-IEEE/
 *.zip
 *.pt
 *.pth
