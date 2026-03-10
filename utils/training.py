@@ -6,6 +6,79 @@ from sklearn.model_selection import KFold
 from tqdm.auto import tqdm, trange
 import numpy as np
 
+# =========================
+# 3.10 加Noise utilities
+# =========================
+def add_gaussian_noise(x: torch.Tensor, sigma: float = 0.01, enable: bool = False):
+    """
+    x: [B, C, T] or [B, T, C]
+    sigma: 高斯噪声强度
+    enable: 是否启用噪声
+    """
+    if (not enable) or sigma <= 0:
+        return x
+    noise = torch.randn_like(x) * sigma
+    return x + noise
+
+
+def add_channel_dropout(
+    x: torch.Tensor,
+    drop_prob: float = 0.1,
+    enable: bool = False,
+    channel_dim: int = 1,
+):
+    """
+    对整个通道置零，模拟坏导联/电极失活。
+
+    x: [B, C, T] 或 [B, T, C]
+    drop_prob: 通道失活概率
+    enable: 是否启用
+    channel_dim:
+        - 如果 x 是 [B, C, T]，就传 1
+        - 如果 x 是 [B, T, C]，就传 2
+    """
+    if (not enable) or drop_prob <= 0:
+        return x
+
+    shape = list(x.shape)
+    mask_shape = [1] * len(shape)
+    mask_shape[0] = shape[0]
+    mask_shape[channel_dim] = shape[channel_dim]
+
+    mask = (torch.rand(mask_shape, device=x.device) > drop_prob).float()
+    return x * mask
+
+
+def apply_noise(
+    x: torch.Tensor,
+    noise_type: str = None,
+    noise_level: float = 0.0,
+    enable_noise: bool = False,
+    channel_dim: int = 1,
+):
+    """
+    统一噪声入口。
+    noise_type:
+        - None
+        - "gaussian"
+        - "channel_dropout"
+    """
+    if (not enable_noise) or noise_type is None or noise_level <= 0:
+        return x
+
+    if noise_type == "gaussian":
+        return add_gaussian_noise(x, sigma=noise_level, enable=True)
+
+    if noise_type == "channel_dropout":
+        return add_channel_dropout(
+            x,
+            drop_prob=noise_level,
+            enable=True,
+            channel_dim=channel_dim,
+        )
+
+    raise ValueError(f"Unsupported noise_type: {noise_type}")
+# =========================
 class EarlyStopping(object):
     """Stop training when loss does not decrease"""
 
@@ -136,7 +209,40 @@ class WarmupScheduler(object):
 
 #         return val_loss / len(val_loader)
 
-def validate(model, device, criterion, val_loader):  #3.9 validate函数替换版 替换上面那版
+# def validate(model, device, criterion, val_loader):  #3.9 validate函数替换版，加对比 替换上面那版
+#     model.eval()
+#     val_loss = 0.0
+#     correct = 0
+#     total = 0
+
+#     with torch.no_grad():
+#         for data, label in val_loader:
+#             data = data.to(device)
+#             label = label.to(device)
+
+#             output = model(data)
+#             batch_loss = criterion(output, label)
+#             val_loss += batch_loss.item()
+
+#             pred = torch.argmax(output, dim=1)
+#             correct += (pred == label).sum().item()
+#             total += label.size(0)
+
+#     val_loss /= len(val_loader)
+#     val_acc = correct / total if total > 0 else 0.0
+#     return val_loss, val_acc
+
+#3.10 加噪声功能
+def validate(
+    model,
+    device,
+    criterion,
+    val_loader,
+    enable_noise: bool = False,
+    noise_type: str = None,
+    noise_level: float = 0.0,
+    channel_dim: int = 1,
+):
     model.eval()
     val_loss = 0.0
     correct = 0
@@ -146,6 +252,15 @@ def validate(model, device, criterion, val_loader):  #3.9 validate函数替换�
         for data, label in val_loader:
             data = data.to(device)
             label = label.to(device)
+
+            # ===== 在这里统一加噪声 =====
+            data = apply_noise(
+                data,
+                noise_type=noise_type,
+                noise_level=noise_level,
+                enable_noise=enable_noise,
+                channel_dim=channel_dim,
+            )
 
             output = model(data)
             batch_loss = criterion(output, label)
@@ -231,7 +346,7 @@ def validate(model, device, criterion, val_loader):  #3.9 validate函数替换�
 
 #     return early_stopper.check_point, early_stopper.best_loss
 
-#_train函数替换版，原版在上面
+#3.9_train函数替换版，加对比，原版在上面
 def _train(
     model: torch.nn.Module,
     device: torch.device,
@@ -245,6 +360,19 @@ def _train(
     patience: int = 0,
     enable_fp16: bool = False,
     scheduler=None,
+    # ===== 3.10新增：训练阶段噪声 =====
+    enable_train_noise: bool = False,
+    train_noise_type: str = None,
+    train_noise_level: float = 0.0,
+
+    # ===== 3.10新增：验证阶段噪声 =====
+    enable_val_noise: bool = False,
+    val_noise_type: str = None,
+    val_noise_level: float = 0.0,
+
+    # 3.10新增：数据形状 [B, C, T] 时用 1
+    channel_dim: int = 1,
+
 ):
     if scheduler is not None:
         assert callable(
@@ -279,6 +407,16 @@ def _train(
             data = data.to(device)
             label = label.to(device)
 
+            # ===== 训练阶段是否加噪声 =====
+            data = apply_noise(
+                data,
+                noise_type=train_noise_type,
+                noise_level=train_noise_level,
+                enable_noise=enable_train_noise,
+                channel_dim=channel_dim,
+            )
+
+
             with autocast(
                 device_type=str(device), enabled=enable_fp16, dtype=torch.float16
             ):
@@ -307,7 +445,16 @@ def _train(
         train_loss /= len(train_loader)
         train_acc = correct / total if total > 0 else 0.0
 
-        val_loss, val_acc = validate(model, device, criterion, val_loader)
+        val_loss, val_acc = validate(
+            model,
+            device,
+            criterion,
+            val_loader,
+            enable_noise=enable_val_noise,   #3.10加噪声
+            noise_type=val_noise_type,       #3.10加噪声
+            noise_level=val_noise_level,     #3.10加噪声
+            channel_dim=channel_dim,         #3.10加噪声
+        )
 
         history["train_loss"].append(train_loss)
         history["train_acc"].append(train_acc)
@@ -340,6 +487,61 @@ def _train(
 
     return result
 
+# def train(
+#     model: torch.nn.Module,
+#     device: torch.device,
+#     model_path: str,
+#     optimizer: torch.optim.Optimizer,
+#     criterion: torch.nn.Module,
+#     epochs: int,
+#     train_loader: torch.utils.data.DataLoader,
+#     val_loader: torch.utils.data.DataLoader,
+#     gradient_step: int = 1,
+#     patience: int = 0,
+#     enable_fp16: bool = False,
+#     scheduler=None,
+
+# ):
+#     """Train the model and return the best check point.
+
+#     Batch accumulation, Early stopping, Warmup scheduler,
+#     and Learning rate scheduler are included.
+
+#     :param model: Model to train.
+#     :param model_path: Path to save the best model.
+#     :param device: Torch device (cpu or cuda).
+#     :param optimizer: Optimizer for training.
+#     :param criterion: Loss function.
+#     :param epochs: Maximum number of epochs.
+#     :param train_loader: Training data loader.
+#     :param val_loader: Validation data loader.
+#     :param gradient_step: Set gradient_step=1 to disable gradient accumulation.
+#     :param patience: Number of epochs to wait before early stopping (default: 0).
+#     :param enable_fp16: Enable FP16 precision training (default: False).
+#     :param scheduler: Learning rate scheduler (default: None).
+#     """
+#     if enable_fp16:
+#         assert torch.amp.autocast_mode.is_autocast_available(
+#             str(device)
+#         ), "Unable to use autocast on current device."
+
+#     check_point, _ = _train(
+#         model,
+#         device,
+#         model_path,
+#         optimizer,
+#         criterion,
+#         epochs,
+#         train_loader,
+#         val_loader,
+#         gradient_step,
+#         patience,
+#         enable_fp16,
+#         scheduler,
+#     )
+#     return check_point
+
+#3.10 train加噪声控制，原版在上
 def train(
     model: torch.nn.Module,
     device: torch.device,
@@ -353,31 +555,20 @@ def train(
     patience: int = 0,
     enable_fp16: bool = False,
     scheduler=None,
+    enable_train_noise: bool = False,
+    train_noise_type: str = None,
+    train_noise_level: float = 0.0,
+    enable_val_noise: bool = False,
+    val_noise_type: str = None,
+    val_noise_level: float = 0.0,
+    channel_dim: int = 1,
 ):
-    """Train the model and return the best check point.
-
-    Batch accumulation, Early stopping, Warmup scheduler,
-    and Learning rate scheduler are included.
-
-    :param model: Model to train.
-    :param model_path: Path to save the best model.
-    :param device: Torch device (cpu or cuda).
-    :param optimizer: Optimizer for training.
-    :param criterion: Loss function.
-    :param epochs: Maximum number of epochs.
-    :param train_loader: Training data loader.
-    :param val_loader: Validation data loader.
-    :param gradient_step: Set gradient_step=1 to disable gradient accumulation.
-    :param patience: Number of epochs to wait before early stopping (default: 0).
-    :param enable_fp16: Enable FP16 precision training (default: False).
-    :param scheduler: Learning rate scheduler (default: None).
-    """
     if enable_fp16:
         assert torch.amp.autocast_mode.is_autocast_available(
             str(device)
         ), "Unable to use autocast on current device."
 
-    check_point, _ = _train(
+    result = _train(
         model,
         device,
         model_path,
@@ -390,9 +581,15 @@ def train(
         patience,
         enable_fp16,
         scheduler,
+        enable_train_noise,
+        train_noise_type,
+        train_noise_level,
+        enable_val_noise,
+        val_noise_type,
+        val_noise_level,
+        channel_dim,
     )
-    return check_point
-
+    return result
 
 # def train_with_kfold(
 #     k_folds: int,
@@ -512,6 +709,16 @@ def train_with_kfold(
     enable_fp16: bool = False,
     scheduler_class=None,
     scheduler_params: dict = None,
+    
+    enable_train_noise: bool = False,    #3.10加噪声
+    train_noise_type: str = None,#3.10加噪声
+    train_noise_level: float = 0.0,#3.10加噪声
+
+    enable_val_noise: bool = False,#3.10加噪声
+    val_noise_type: str = None,#3.10加噪声
+    val_noise_level: float = 0.0,#3.10加噪声
+
+    channel_dim: int = 1,#3.10加噪声
 ):
     if enable_fp16:
         assert torch.amp.autocast_mode.is_autocast_available(
@@ -561,6 +768,13 @@ def train_with_kfold(
             patience,
             enable_fp16,
             scheduler,
+            enable_train_noise,#3.10加噪声
+            train_noise_type,#3.10加噪声
+            train_noise_level,#3.10加噪声
+            enable_val_noise,#3.10加噪声
+            val_noise_type,#3.10加噪声
+            val_noise_level,#3.10加噪声
+            channel_dim,#3.10加噪声
         )
 
         fold_info = {
