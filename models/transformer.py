@@ -148,10 +148,9 @@ class ChannelAttention1D(nn.Module):
     def forward(self, x):
         # x: [B, C, T]
         w = x.mean(dim=-1)          # [B, C]  全局平均池化(时间维)
-        w = self.mlp(w)             # [B, C]
+        w = self.mlp(w), w             # 返回权重，方便可视化
         w = w.unsqueeze(-1)         # [B, C, 1]
         return x * w, w             # 返回权重，方便可视化
-
 class StaticChannelGating(nn.Module):
     """
     全局可学习的通道门控：每个电极一个标量权重(0~1)。
