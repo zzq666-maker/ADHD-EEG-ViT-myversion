@@ -148,7 +148,7 @@ class ChannelAttention1D(nn.Module):
     def forward(self, x):
         # x: [B, C, T]
         w = x.mean(dim=-1)          # [B, C]  全局平均池化(时间维)
-        w = self.mlp(w), w             # 返回权重，方便可视化
+        w = self.mlp(w)             # 返回权重，方便可视化
         w = w.unsqueeze(-1)         # [B, C, 1]
         return x * w, w             # 返回权重，方便可视化
 class StaticChannelGating(nn.Module):
@@ -164,7 +164,45 @@ class StaticChannelGating(nn.Module):
     def forward(self, x):
         w = torch.sigmoid(self.logits)          # [C]
         return x * w.view(1, -1, 1), w
-    
+
+class ECALayer1D(nn.Module):
+    """
+    ECA for EEG 1D signals.
+
+    输入: x [B, C, T]
+    输出: x' [B, C, T], w [B, C, 1]
+
+    思路:
+    1) 对时间维做全局平均池化 -> [B, C]
+    2) 用 1D conv 在通道维上做局部交互
+    3) sigmoid 得到每个通道的权重
+    """
+    def __init__(self, channels: int, k_size: int = 3):
+        super().__init__()
+        assert k_size % 2 == 1, "ECA kernel size must be odd."
+
+        self.avg_pool = nn.AdaptiveAvgPool1d(1)   # [B, C, T] -> [B, C, 1]
+        self.conv = nn.Conv1d(
+            in_channels=1,
+            out_channels=1,
+            kernel_size=k_size,
+            padding=(k_size - 1) // 2,
+            bias=False,
+        )
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        # x: [B, C, T]
+        y = self.avg_pool(x)                      # [B, C, 1]
+        y = y.squeeze(-1)                         # [B, C]
+        y = y.unsqueeze(1)                        # [B, 1, C]
+        y = self.conv(y)                          # [B, 1, C]
+        y = self.sigmoid(y)                       # [B, 1, C]
+        y = y.squeeze(1).unsqueeze(-1)            # [B, C, 1]
+
+        # 和你当前实现保持一致：返回加权后的特征 + 权重
+        return x * y, y
+
 class ViTransformer(nn.Module):
     """Vision Transformer model for EEG signals."""
 
@@ -182,6 +220,7 @@ class ViTransformer(nn.Module):
         use_channel_attn: bool = False,
         channel_attn_type: str = "static",
         channel_attn_reduction: int = 4,
+        eca_kernel_size: int = 3,
     ) -> torch.Tensor:
         """'input_channel' will be converted to 'embed_dim' through 1D convolution."""
         super(ViTransformer, self).__init__()
@@ -202,6 +241,12 @@ class ViTransformer(nn.Module):
                     reduction=channel_attn_reduction,
                     dropout_p=0.0,
                 )
+            elif self.channel_attn_type == "eca":
+                self.chan_attn = ECALayer1D(
+                    channels=self.signal_channel,
+                    k_size=eca_kernel_size,
+                )
+
             else:
                 raise ValueError(f"Unknown channel_attn_type: {self.channel_attn_type}")
 
