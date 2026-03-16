@@ -2,7 +2,7 @@ import torch
 from torch import autocast
 from torch.amp import GradScaler
 from torch.utils.data import Subset, DataLoader
-from sklearn.model_selection import KFold
+from sklearn.model_selection import GroupKFold, KFold
 from tqdm.auto import tqdm, trange
 import numpy as np
 
@@ -326,9 +326,14 @@ def _train(
                 scaler.update()
                 optimizer.zero_grad()
 
+        if len(train_loader) % gradient_step != 0:
+            scaler.step(optimizer)
+            scaler.update()
+            optimizer.zero_grad()
+
         # Validate Training Epoch
         train_loss /= len(train_loader)
-        val_loss = validate(model, torch.device("cuda"), criterion, val_loader)
+        val_loss = validate(model, device, criterion, val_loader)
         tqdm.write(
             f"Epoch {epoch_idx}, Train-Loss: {train_loss:.5f},  Val-Loss: {val_loss:.5f}"
         )
@@ -671,6 +676,93 @@ def train_with_kfold(
             model,
             device,
             model_path,
+            optimizer,
+            criterion,
+            epochs,
+            train_loader,
+            val_loader,
+            gradient_step,
+            patience,
+            enable_fp16,
+            scheduler,
+        )
+
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            best_check_point = check_point
+            best_fold = fold
+
+    best_model_path = f"{model_name}_{best_fold}.{ext}"
+    return best_check_point, best_model_path
+
+
+def train_with_group_kfold(
+    k_folds: int,
+    model_class: torch.nn,
+    device: torch.device,
+    model_path: str,
+    optimizer_class: torch.optim,
+    criterion: torch.nn.Module,
+    epochs: int,
+    train_dataset: torch.utils.data.Dataset,
+    groups,
+    batch: int,
+    model_params: dict = None,
+    optimizer_params: dict = None,
+    gradient_step: int = 1,
+    patience: int = 0,
+    enable_fp16: bool = False,
+    scheduler_class=None,
+    scheduler_params: dict = None,
+):
+    """Train with subject-aware GroupKFold to avoid leakage across folds."""
+    if enable_fp16:
+        assert torch.amp.autocast_mode.is_autocast_available(
+            str(device)
+        ), "Unable to use autocast on current device."
+
+    if len(groups) != len(train_dataset):
+        raise ValueError("Length of groups must match the dataset length.")
+
+    splitter = GroupKFold(n_splits=k_folds)
+    best_fold = 0
+    best_check_point = 0
+    best_val_loss = float("inf")
+    model_name, ext = model_path.rsplit(".", 1)
+    indices = np.arange(len(train_dataset))
+
+    for fold, (train_idx, val_idx) in enumerate(
+        splitter.split(indices, groups=groups), start=1
+    ):
+        torch.cuda.empty_cache()
+        print(f"\n===== Group Fold {fold} =====")
+
+        train_dataset_fold = Subset(train_dataset, train_idx)
+        val_dataset_fold = Subset(train_dataset, val_idx)
+        train_loader = DataLoader(train_dataset_fold, batch_size=batch, shuffle=True)
+        val_loader = DataLoader(val_dataset_fold, batch_size=batch, shuffle=False)
+        fold_model_path = f"{model_name}_{fold}.{ext}"
+
+        current_model_params = {} if model_params is None else model_params.copy()
+        current_optimizer_params = (
+            {} if optimizer_params is None else optimizer_params.copy()
+        )
+
+        model = model_class(**current_model_params)
+        optimizer = optimizer_class(model.parameters(), **current_optimizer_params)
+
+        if scheduler_class is not None:
+            current_scheduler_params = (
+                {} if scheduler_params is None else scheduler_params.copy()
+            )
+            scheduler = scheduler_class(optimizer, **current_scheduler_params)
+        else:
+            scheduler = None
+
+        check_point, val_loss = _train(
+            model,
+            device,
+            fold_model_path,
             optimizer,
             criterion,
             epochs,
