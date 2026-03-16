@@ -1,7 +1,7 @@
 from .config import *
 from .data import *
 from .function import *
-from .training import train, train_with_group_kfold, train_with_kfold, WarmupScheduler
+from .training import train, train_with_kfold, WarmupScheduler
 
 __all__ = [
     # config
@@ -22,6 +22,5 @@ __all__ = [
     # training
     "WarmupScheduler",
     "train",
-    "train_with_group_kfold",
     "train_with_kfold",
 ]

@@ -114,33 +114,35 @@ def evaluate(
     device: torch.device,
     data_loader: torch.utils.data.DataLoader,
     enable_fp16: bool = False,
-    verbose: bool = False,
 ):
     """Return metrics for test set"""
 
     y_pred, y_true = inference(model, device, data_loader, enable_fp16)
 
-    # y_pred 已经是 inference() 里 softmax 后的概率
+    # y_pred: [N, num_classes]，通常是 logits
     y_pred_tensor = torch.tensor(y_pred, dtype=torch.float32)
-    y_prob = y_pred_tensor.numpy()
+
+    # 转成 softmax 概率
+    y_prob = torch.softmax(y_pred_tensor, dim=1).numpy()
 
     # 取预测类别
     y_pred_cls = np.argmax(y_prob, axis=1)
 
-    if verbose:
-        print("===== Debug: first 10 samples =====")
-        for i in range(min(10, len(y_true))):
-            print(
-                f"sample {i:02d} | "
-                f"true={y_true[i]} | "
-                f"pred={y_pred_cls[i]} | "
-                f"prob={y_prob[i]}"
-            )
+    # ===== 调试打印：只看前 10 个样本 =====
+    print("===== Debug: first 10 samples =====")
+    for i in range(min(10, len(y_true))):
+        print(
+            f"sample {i:02d} | "
+            f"true={y_true[i]} | "
+            f"pred={y_pred_cls[i]} | "
+            f"prob={y_prob[i]}"
+        )
 
-        correct = (y_pred_cls == y_true).sum()
-        total = len(y_true)
-        print(f"Correct: {correct}/{total}")
-        print(f"Accuracy: {correct / total:.4f}")
+    # ===== 正确数 / 总数 =====
+    correct = (y_pred_cls == y_true).sum()
+    total = len(y_true)
+    print(f"Correct: {correct}/{total}")
+    print(f"Accuracy: {correct / total:.4f}")
 
     accuracy = accuracy_score(y_true, y_pred_cls)
     f1 = f1_score(y_true, y_pred_cls)

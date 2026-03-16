@@ -59,7 +59,7 @@ check_point = train(
 
 ```python
 import torch
-from utils import train_with_group_kfold, device
+from utils import train_with_kfold, device
 from models.transformer import Transformer
 
 model = Transformer # without init
@@ -72,9 +72,8 @@ k_folds = 5
 batch_size = 4
 
 dataset = torch.utils.data.TensorDataset(...) # Dataset, not Dataloader
-groups = [...]  # subject id for each sample
 
-check_point, best_model = train_with_group_kfold(
+check_point, best_model = train_with_kfold(
     k_folds=k_folds,
     device=device(),
     model_path=model_path,
@@ -85,9 +84,6 @@ check_point, best_model = train_with_group_kfold(
     criterion=criterion,
     epochs=epochs,
     train_dataset=dataset,
-    groups=groups,
     batch=batch_size,
 )
 ```
-
-Use `train_with_group_kfold()` when multiple windows come from the same subject. It keeps samples from the same subject in the same fold and avoids subject leakage.

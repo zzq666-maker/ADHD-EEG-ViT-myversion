@@ -49,11 +49,10 @@ class AttentionBlock(nn.Module):
         x = self.norm1(x + input)
 
         # Feed Forward
-        ff_input = x
         x = self.feedforward(x)
 
         # Add & Norm
-        x = self.norm2(x + ff_input)
+        x = self.norm2(x + input)
         
         # #GPT说这版更合理，原版在上面
         # attn_out, _ = self.attention(input, input, input, need_weights=False)

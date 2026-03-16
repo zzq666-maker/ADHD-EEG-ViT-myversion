@@ -1,5 +1,4 @@
 import argparse
-from pathlib import Path
 
 import numpy as np
 import torch
@@ -9,16 +8,7 @@ from utils import device, inference, EEGDataset
 from models.transformer import ViTransformer
 
 parser = argparse.ArgumentParser(description="EEG-ViTransformer")
-parser.add_argument(
-    "--dataset",
-    default="IEEE_subject_split/test.pt",
-    help="EEG dataset path",
-)
-parser.add_argument(
-    "--model-path",
-    required=True,
-    help="Path to trained model weights",
-)
+parser.add_argument("--dataset", help="EEG dataset path")
 parser.add_argument("--fp16", default=False, action=argparse.BooleanOptionalAction)
 args = parser.parse_args()
 
@@ -31,6 +21,7 @@ dataloader = DataLoader(dataset, batch_size=4)
 labels = ["Control", "ADHD"]
 
 # Load pre-trained model
+TRAINED_VIT_PATH = "./log/ieee-transformer_250303001232982598_3.pt"
 TRAINED_VIT_CONFIG = {
     "input_channel": 19,
     "seq_length": 9250,
@@ -43,7 +34,7 @@ TRAINED_VIT_CONFIG = {
 }
 model = ViTransformer(**TRAINED_VIT_CONFIG)
 model.load_state_dict(
-    torch.load(Path(args.model_path), map_location=device, weights_only=True)
+    torch.load(TRAINED_VIT_PATH, map_location=device, weights_only=True)
 )
 model.eval()
 
