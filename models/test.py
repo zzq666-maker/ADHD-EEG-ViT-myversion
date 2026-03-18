@@ -1,7 +1,7 @@
 import unittest
 import torch
 
-from transformer import AttentionBlock, Transformer, ViTransformer
+from models.transformer import AttentionBlock, Transformer, ViTransformer
 
 
 class TestTransformer(unittest.TestCase):
