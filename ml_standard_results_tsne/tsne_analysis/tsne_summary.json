@@ -1,0 +1,14 @@
+{
+  "n_subjects": 121,
+  "n_features": 1565,
+  "tsne_perplexity": 20.0,
+  "feature_group_counts": {
+    "psd_bin": 570,
+    "frequency_band": 380,
+    "time_domain": 304,
+    "hjorth": 114,
+    "band_ratio": 114,
+    "asymmetry": 48,
+    "region": 35
+  }
+}

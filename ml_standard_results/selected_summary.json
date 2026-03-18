@@ -1,0 +1,31 @@
+{
+  "repeats": 10,
+  "selection_metric": "validation balanced accuracy",
+  "selected_model_counts": {
+    "svm_rbf": 4,
+    "random_forest": 4,
+    "logreg": 2
+  },
+  "mean_test_accuracy": 0.6159999999999999,
+  "std_test_accuracy": 0.08044321668799123,
+  "mean_test_balanced_accuracy": 0.6108974358974357,
+  "std_test_balanced_accuracy": 0.07929337185093155,
+  "mean_test_f1": 0.6594866357442422,
+  "std_test_f1": 0.09686892138891519,
+  "mean_test_recall": 0.7384615384615384,
+  "std_test_recall": 0.17838489365052398,
+  "mean_test_precision": 0.6093312569783158,
+  "std_test_precision": 0.07365982783696233,
+  "mean_test_specificity": 0.4833333333333333,
+  "std_test_specificity": 0.15614965913950218,
+  "mean_test_tn": 5.8,
+  "std_test_tn": 1.8737959096740262,
+  "mean_test_fp": 6.2,
+  "std_test_fp": 1.8737959096740262,
+  "mean_test_fn": 3.4,
+  "std_test_fn": 2.3190036174568114,
+  "mean_test_tp": 9.6,
+  "std_test_tp": 2.3190036174568114,
+  "mean_test_auc": 0.6676282051282051,
+  "std_test_auc": 0.10889105664763817
+}

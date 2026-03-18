@@ -1,0 +1,30 @@
+{
+  "raw_dir": "data_raw",
+  "output_dir": "ml_standard_results",
+  "fs": 128,
+  "window_sec": 4.0,
+  "step_sec": 2.0,
+  "repeats": 10,
+  "test_ratio": 0.2,
+  "val_ratio": 0.2,
+  "notch_filter": true,
+  "feature_groups": [
+    "time_domain_statistics",
+    "hjorth_parameters",
+    "band_power_and_relative_power",
+    "fine_grained_psd_bins",
+    "region_averages",
+    "left_right_asymmetry"
+  ],
+  "selection_rule": "Within each repeat, choose the model with the highest validation balanced accuracy and report test performance.",
+  "best_selected_model": {
+    "repeat": 2,
+    "model_name": "svm_rbf",
+    "val_balanced_accuracy": 0.75,
+    "test_balanced_accuracy": 0.5192307692307692,
+    "best_params": {
+      "clf__C": 5.0,
+      "clf__gamma": "scale"
+    }
+  }
+}

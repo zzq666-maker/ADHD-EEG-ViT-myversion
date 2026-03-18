@@ -1,0 +1,21 @@
+{
+  "repeats": 20,
+  "selection_rule": "Within each repeat, choose the model with the highest validation accuracy and report its independent test performance.",
+  "selected_model_counts": {
+    "svm_rbf": 9,
+    "xgboost": 8,
+    "random_forest": 3
+  },
+  "selected_model_mean_test_accuracy": 0.6859999999999999,
+  "selected_model_std_test_accuracy": 0.08337612936187681,
+  "selected_model_mean_test_f1": 0.7011108163714683,
+  "selected_model_std_test_f1": 0.0842749033481202,
+  "selected_model_mean_test_recall": 0.7153846153846153,
+  "selected_model_std_test_recall": 0.117325113195065,
+  "selected_model_mean_test_precision": 0.6965350091085385,
+  "selected_model_std_test_precision": 0.08534076169203417,
+  "selected_model_mean_test_specificity": 0.6541666666666666,
+  "selected_model_std_test_specificity": 0.12760444638351012,
+  "selected_model_mean_test_auc": 0.7365384615384616,
+  "selected_model_std_test_auc": 0.07951927870437374
+}

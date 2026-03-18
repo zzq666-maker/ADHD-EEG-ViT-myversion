@@ -1,0 +1,23 @@
+{
+  "raw_dir": "data_raw",
+  "output_dir": "ml_standard_results_tsne",
+  "fs": 128,
+  "window_sec": 4.0,
+  "step_sec": 2.0,
+  "run_tsne": true,
+  "tsne_only": true,
+  "tsne_summary": {
+    "n_subjects": 121,
+    "n_features": 1565,
+    "tsne_perplexity": 20.0,
+    "feature_group_counts": {
+      "psd_bin": 570,
+      "frequency_band": 380,
+      "time_domain": 304,
+      "hjorth": 114,
+      "band_ratio": 114,
+      "asymmetry": 48,
+      "region": 35
+    }
+  }
+}

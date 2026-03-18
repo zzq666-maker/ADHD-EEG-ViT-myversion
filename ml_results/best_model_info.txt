@@ -1,0 +1,7 @@
+best_repeat: 3
+best_seed: 44
+best_model_name: svm_rbf
+best_val_accuracy: 0.833333
+best_test_accuracy: 0.640000
+best_cv_score: 0.708571
+best_params: {'clf__C': 5, 'clf__gamma': 0.001, 'clf__kernel': 'rbf', 'selector__k': 120}
