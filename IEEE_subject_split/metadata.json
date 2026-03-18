@@ -1,0 +1,54 @@
+{
+  "name": "IEEE subject-level EEG data for ADHD / Control children",
+  "description": "Subject-level split performed before windowing to avoid subject leakage.",
+  "license": "CC BY 4.0",
+  "window_size": 9250,
+  "seed": 42,
+  "split_strategy": "subject_level_stratified_split_then_windowing",
+  "train": {
+    "subjects": 84,
+    "subjects_used": 84,
+    "subjects_dropped_short_signal": [],
+    "windows": 115,
+    "adhd_windows": 63,
+    "control_windows": 52,
+    "shape": [
+      115,
+      19,
+      9250
+    ]
+  },
+  "val": {
+    "subjects": 12,
+    "subjects_used": 12,
+    "subjects_dropped_short_signal": [],
+    "windows": 18,
+    "adhd_windows": 11,
+    "control_windows": 7,
+    "shape": [
+      18,
+      19,
+      9250
+    ]
+  },
+  "test": {
+    "subjects": 25,
+    "subjects_used": 24,
+    "subjects_dropped_short_signal": [
+      "v51p"
+    ],
+    "windows": 41,
+    "adhd_windows": 28,
+    "control_windows": 13,
+    "shape": [
+      41,
+      19,
+      9250
+    ]
+  },
+  "subject_counts": {
+    "total": 121,
+    "adhd": 61,
+    "control": 60
+  }
+}
