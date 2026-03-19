@@ -1,0 +1,44 @@
+{
+  "name": "mid_reg_tf32",
+  "run_name": "03_mid_reg_tf32",
+  "checkpoint_epoch": 1,
+  "model_path": "tuning_screen/03_mid_reg_tf32.pt",
+  "train": {
+    "epochs": 6,
+    "lr": 0.0003,
+    "weight_decay": 0.005,
+    "patience": 3,
+    "batch_size": 8,
+    "grad_step": 2,
+    "warmup_steps": 10,
+    "lr_decay_factor": 0.5
+  },
+  "model": {
+    "input_channel": 19,
+    "seq_length": 9250,
+    "embed_dim": 48,
+    "num_heads": 4,
+    "num_blocks": 2,
+    "block_hidden_dim": 96,
+    "fc_hidden_dim": 24,
+    "num_classes": 2,
+    "dropout_p": 0.4,
+    "use_channel_attn": true,
+    "channel_attn_type": "eca",
+    "channel_attn_reduction": 4,
+    "eca_kernel_size": 3,
+    "temporal_kernel_size": 7,
+    "temporal_stride": 2,
+    "shallow_hidden_dim": 96,
+    "shallow_dropout_p": 0.2,
+    "tf_dropout_p": 0.5,
+    "stft_n_fft": 32,
+    "stft_hop_length": 16
+  },
+  "val_metrics": {
+    "accuracy": 0.5555555555555556,
+    "f1-score": 0.7142857142857143,
+    "recall": 0.9090909090909091,
+    "auc": 0.49350649350649345
+  }
+}

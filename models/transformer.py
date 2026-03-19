@@ -384,12 +384,21 @@ class ViTransformer(nn.Module):
         tf_dropout_p: float | None = None,
         stft_n_fft: int = 128,
         stft_hop_length: int = 32,
+        ablation_mode: str = "full_fusion",
     ) -> torch.Tensor:
         """'input_channel' will be converted to 'embed_dim' through 1D convolution."""
         super(ViTransformer, self).__init__()
         self.signal_channel = input_channel
         self.seq_length = seq_length
         self.embed_dim = embed_dim
+        self.ablation_mode = ablation_mode
+
+        valid_modes = {"full_fusion", "temporal_plus_tf", "temporal_only"}
+        if self.ablation_mode not in valid_modes:
+            raise ValueError(
+                f"Unsupported ablation_mode: {self.ablation_mode}. "
+                f"Expected one of {sorted(valid_modes)}."
+            )
 
         # ===== Channel attention (optional) =====
         self.use_channel_attn = use_channel_attn
@@ -513,12 +522,18 @@ class ViTransformer(nn.Module):
         z_t2 = self.temporal_transformer(z_t1)  # [B, T', D]
         z_t = self.temporal_pool(z_t2)          # [B, D]
 
+        if self.ablation_mode == "temporal_only":
+            return self.mlp(z_t)
+
         # ===== time-frequency branch =====
         spec = self.stft(x)                     # [B, C, F, T_f]
         z_f1 = self.tf_encoder(spec)            # [B, T_f, D]
-        z_f2 = self.cross_attn_1(z_f1, z_t1)    # [B, T_f, D]
-        z_f3 = z_f2 + self.cross_attn_2(z_f2, z_t2)
-        z_f = self.tf_pool(z_f3)                # [B, D]
+        if self.ablation_mode == "temporal_plus_tf":
+            z_f = self.tf_pool(z_f1)            # [B, D]
+        else:
+            z_f2 = self.cross_attn_1(z_f1, z_t1)    # [B, T_f, D]
+            z_f3 = z_f2 + self.cross_attn_2(z_f2, z_t2)
+            z_f = self.tf_pool(z_f3)                # [B, D]
 
         # ===== fusion + classification =====
         z = self.gated_fusion(z_t, z_f)
