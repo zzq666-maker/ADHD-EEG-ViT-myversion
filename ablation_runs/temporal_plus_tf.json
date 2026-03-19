@@ -1,0 +1,50 @@
+{
+  "mode": "temporal_plus_tf",
+  "checkpoint_epoch": 1,
+  "model_path": "ablation_runs/temporal_plus_tf.pt",
+  "train_config": {
+    "epochs": 20,
+    "lr": 0.0003,
+    "weight_decay": 0.005,
+    "patience": 6,
+    "batch_size": 8,
+    "grad_step": 2,
+    "warmup_steps": 10,
+    "lr_decay_factor": 0.5
+  },
+  "model_config": {
+    "input_channel": 19,
+    "seq_length": 9250,
+    "embed_dim": 32,
+    "num_heads": 4,
+    "num_blocks": 1,
+    "block_hidden_dim": 64,
+    "fc_hidden_dim": 16,
+    "num_classes": 2,
+    "dropout_p": 0.4,
+    "use_channel_attn": true,
+    "channel_attn_type": "eca",
+    "channel_attn_reduction": 4,
+    "eca_kernel_size": 3,
+    "temporal_kernel_size": 7,
+    "temporal_stride": 2,
+    "shallow_hidden_dim": 64,
+    "shallow_dropout_p": 0.2,
+    "tf_dropout_p": 0.5,
+    "stft_n_fft": 32,
+    "stft_hop_length": 16,
+    "ablation_mode": "temporal_plus_tf"
+  },
+  "val_metrics": {
+    "accuracy": 0.6111111111111112,
+    "f1-score": 0.7586206896551724,
+    "recall": 1.0,
+    "auc": 0.6493506493506493
+  },
+  "test_metrics": {
+    "accuracy": 0.6829268292682927,
+    "f1-score": 0.8115942028985508,
+    "recall": 1.0,
+    "auc": 0.3708791208791209
+  }
+}
